@@ -32,7 +32,7 @@ if st.button("Genera Report Bio-Sportivo"):
         try:
             # Configura Gemini (Uso di .strip() per evitare spazi nella chiave)
             genai.configure(api_key=gemini_key.strip())
-            model = genai.GenerativeModel("gemini-1.5-flash")
+           model = genai.GenerativeModel(model_name="models/gemini-1.5-flash")
             
             prompt = f"""
             Agisci come un esperto nutrizionista sportivo e coach di ciclismo.
