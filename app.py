@@ -3,7 +3,7 @@ import google.generativeai as genai
 
 # 1. Configurazione Pagina
 st.set_page_config(page_title="BioCycle AI Prototype", layout="centered")
-st.title("🚴‍♂️ BioCycle AI Prototype")
+st.title("🚴‍♂️ BioCycle AI - VERSIONE 2.0")
 st.subheader("Nutrizione e Allenamento basati sui tuoi dati")
 
 # 2. Sezione Chiavi API nella barra laterale
