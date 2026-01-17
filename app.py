@@ -38,13 +38,8 @@ if st.button("Genera Report Bio-Sportivo"):
             Agisci come un esperto nutrizionista sportivo e coach di ciclismo.
             Analizza questi dati:
             ANALISI DEL SANGUE: {blood_test_text}
-            ULTIMO ALLENAMENTO: {workout_data}
-            
-            Fornisci:
-            1. Un commento sulla relazione tra lo sforzo fatto e i parametri ematici.
-            2. Un consiglio pratico su cosa mangiare nelle prossime 24 ore per ottimizzare il recupero.
-            3. Una nota motivazionale per il prossimo obiettivo.
-            """
+            ULTIMO ALLENAMENTO: {workout_data}            
+           
             Fornisci:
             1. Un commento sulla relazione tra lo sforzo fatto e i parametri ematici.
             2. Un consiglio pratico su cosa mangiare nelle prossime 24 ore per ottimizzare il recupero.
