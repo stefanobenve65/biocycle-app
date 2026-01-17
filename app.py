@@ -30,15 +30,21 @@ if st.button("Genera Report Bio-Sportivo"):
         st.warning("Assicurati di aver inserito sia i dati del sangue che dell'allenamento.")
     else:
         try:
-            # Configura Gemini
-            genai.configure(api_key=gemini_key)
-            model = genai.GenerativeModel("gemini-1.0-pro")
+          # Configura Gemini (Corretto con .strip() e modello Flash)
+            genai.configure(api_key=gemini_key.strip())
+            model = genai.GenerativeModel("gemini-1.5-flash")
+            
             prompt = f"""
             Agisci come un esperto nutrizionista sportivo e coach di ciclismo.
             Analizza questi dati:
             ANALISI DEL SANGUE: {blood_test_text}
             ULTIMO ALLENAMENTO: {workout_data}
             
+            Fornisci:
+            1. Un commento sulla relazione tra lo sforzo fatto e i parametri ematici.
+            2. Un consiglio pratico su cosa mangiare nelle prossime 24 ore per ottimizzare il recupero.
+            3. Una nota motivazionale per il prossimo obiettivo.
+            """
             Fornisci:
             1. Un commento sulla relazione tra lo sforzo fatto e i parametri ematici.
             2. Un consiglio pratico su cosa mangiare nelle prossime 24 ore per ottimizzare il recupero.
