@@ -29,35 +29,21 @@ if st.button("Genera Report Bio-Sportivo"):
         st.warning("Assicurati di aver inserito sia i dati del sangue che dell'allenamento.")
     else:
         try:
-            # 1. Configurazione API (Forziamo il trasporto REST per evitare errori di versione)
-            genai.configure(
-                api_key=gemini_key.strip(),
-                transport='rest'
-            )
+            # Configurazione base
+            genai.configure(api_key=gemini_key.strip())
             
-            # 2. Modello Flash 1.5 (il migliore per questo compito)
+            # Usiamo il modello senza prefissi, la libreria 0.8.3 saprà cosa fare
             model = genai.GenerativeModel("gemini-1.5-flash")
             
-            prompt = f"""
-            Agisci come un esperto nutrizionista sportivo e coach di ciclismo.
-            Analizza questi dati:
-            ANALISI DEL SANGUE E DATI UTENTE: {blood_test_text}
-            ULTIMO ALLENAMENTO: {workout_data}
+            prompt = f"Analizza questi dati da esperto: {blood_test_text} {workout_data}"
             
-            Fornisci un report diviso in:
-            1. Commento tecnico sulla relazione sforzo/parametri ematici.
-            2. Consiglio pratico nutrizionale per le prossime 24 ore.
-            3. Nota motivazionale per il ciclista.
-            """
-            
-            with st.spinner("L'AI sta analizzando i tuoi dati..."):
-                # Generazione contenuto semplice, senza parametri extra che causano crash
+            with st.spinner("Analisi in corso..."):
                 response = model.generate_content(prompt)
                 st.success("✅ Analisi Completata")
                 st.markdown(response.text)
                 
         except Exception as e:
-            st.error(f"Si è verificato un errore tecnico: {e}")
+            st.error(f"Errore: {e}")
 
 st.divider()
 st.caption("Prototipo BioCycle 2026 - Versione Stabile")
