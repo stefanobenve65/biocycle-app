@@ -29,10 +29,13 @@ if st.button("Genera Report Bio-Sportivo"):
         st.warning("Assicurati di aver inserito sia i dati del sangue che dell'allenamento.")
     else:
         try:
-            # Configurazione API con pulizia spazi
-            genai.configure(api_key=gemini_key.strip())
+            # 1. Configurazione API (Forziamo il trasporto REST per evitare errori di versione)
+            genai.configure(
+                api_key=gemini_key.strip(),
+                transport='rest'
+            )
             
-            # Utilizziamo il modello Flash 1.5 (più moderno e performante)
+            # 2. Modello Flash 1.5 (il migliore per questo compito)
             model = genai.GenerativeModel("gemini-1.5-flash")
             
             prompt = f"""
@@ -47,17 +50,13 @@ if st.button("Genera Report Bio-Sportivo"):
             3. Nota motivazionale per il ciclista.
             """
             
-            with st.spinner("Analisi in corso (Protocollo v1 Stabile)..."):
-                # FORZIAMO la versione v1 dell'API per bypassare l'errore 404 v1beta
-                response = model.generate_content(
-                    prompt,
-                    request_options={"api_version": "v1"}
-                )
+            with st.spinner("L'AI sta analizzando i tuoi dati..."):
+                # Generazione contenuto semplice, senza parametri extra che causano crash
+                response = model.generate_content(prompt)
                 st.success("✅ Analisi Completata")
                 st.markdown(response.text)
                 
         except Exception as e:
-            # Se l'errore persiste, mostriamo esattamente cosa dice il server
             st.error(f"Si è verificato un errore tecnico: {e}")
 
 st.divider()
