@@ -6,7 +6,7 @@ from stravalib.client import Client
 CLIENT_ID = '196357'
 CLIENT_SECRET = '25a52cfbe7ddd6de7964e341aae473c643ff26c3'
 # Questo è l'indirizzo che abbiamo configurato come callback
-REDIRECT_URI = 'https://biocycle-app-jeyzkzryczapo3vcb5caqm.streamlit.app/'
+REDIRECT_URI = REDIRECT_URI = 'https://biocycle-app-fm8xahzxwrfjstshjcgw6v.streamlit.app/'
 
 st.set_page_config(page_title="BioCycle AI", layout="centered")
 st.title("🚴‍♂️ BioCycle AI - Dashboard")
