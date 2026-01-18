@@ -29,10 +29,10 @@ if st.button("Genera Report Bio-Sportivo"):
         st.warning("Assicurati di aver inserito sia i dati del sangue che dell'allenamento.")
     else:
         try:
-            # Configurazione API con pulizia spazi
+            # Configurazione API
             genai.configure(api_key=gemini_key.strip())
             
-            # Utilizzo del modello corretto
+            # Usiamo il modello Flash 1.5
             model = genai.GenerativeModel("gemini-1.5-flash")
             
             prompt = f"""
@@ -47,8 +47,12 @@ if st.button("Genera Report Bio-Sportivo"):
             3. Nota motivazionale.
             """
             
-            with st.spinner("L'AI sta analizzando i tuoi dati..."):
-                response = model.generate_content(prompt)
+            with st.spinner("L'AI sta analizzando i tuoi dati con protocollo v1..."):
+                # LA MODIFICA CHIAVE: Forziamo la versione v1 per evitare l'errore 404 v1beta
+                response = model.generate_content(
+                    prompt,
+                    request_options={"api_version": "v1"}
+                )
                 st.success("✅ Analisi Completata")
                 st.markdown(response.text)
                 
