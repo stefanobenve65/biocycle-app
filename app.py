@@ -5,14 +5,14 @@ from PIL import Image
 import json
 import os
 
-# --- CONFIGURAZIONE ---
+# --- CONFIGURAZIONE CORE ---
 CLIENT_ID = '196357'
 CLIENT_SECRET = '25a52cfbe7ddd6de7964e341aae473c643ff26c3'
 REDIRECT_URI = 'https://biocycle-app-fm8xahzxwrfjstshjcgw6v.streamlit.app/'
 
-st.set_page_config(page_title="BioCycle AI v3.4", page_icon="🚴‍♂️", layout="wide")
+st.set_page_config(page_title="BioCycle AI v3.5", page_icon="🚴‍♂️", layout="wide")
 
-# --- SISTEMA DI SALVATAGGIO ---
+# --- PERSISTENZA DATI ---
 DB_FILE = "biocycle_data.json"
 def salva_dati(dati):
     with open(DB_FILE, "w") as f: json.dump(dati, f)
@@ -24,7 +24,7 @@ def carica_dati():
 if "messages" not in st.session_state: st.session_state.messages = []
 if "user_data" not in st.session_state: st.session_state.user_data = carica_dati()
 
-# --- LOGICA STRAVA POTENZIATA ---
+# --- LOGICA STRAVA ---
 client = Client()
 if "code" in st.query_params:
     try:
@@ -36,15 +36,11 @@ if "code" in st.query_params:
 # --- SIDEBAR ---
 with st.sidebar:
     st.header("⚙️ Configurazione")
+    # Usiamo 'key' per stabilizzare la chiave API
     gemini_key = st.text_input("Gemini API Key", type="password", key="api_key_input")
     
     if "strava_token" not in st.session_state:
-        # AGGIORNATO: Chiediamo esplicitamente 'activity:read_all'
-        url = client.authorization_url(
-            client_id=CLIENT_ID, 
-            redirect_uri=REDIRECT_URI, 
-            scope=['read_all', 'activity:read_all']
-        )
+        url = client.authorization_url(client_id=CLIENT_ID, redirect_uri=REDIRECT_URI, scope=['read_all', 'activity:read_all'])
         st.link_button("🔗 Connetti Strava", url)
     else: st.success("🟢 Strava Connesso")
     
@@ -54,7 +50,7 @@ with st.sidebar:
 
 # --- INTERFACCIA ---
 st.title("🚴‍♂️ BioCycle AI: Digital Coach")
-tab_profilo, tab_obiettivi, tab_dashboard = st.tabs(["👤 Profilo Utente", "🏆 Obiettivi", "🚀 Dashboard & Chat"])
+tab_profilo, tab_obiettivi, tab_dashboard = st.tabs(["👤 Profilo", "🏆 Obiettivi", "🚀 Dashboard & Chat"])
 
 with tab_profilo:
     st.header("Il Tuo Profilo")
@@ -83,23 +79,35 @@ with tab_obiettivi:
 
 with tab_dashboard:
     c_chat, c_strava = st.columns([1.5, 1])
+    
+    # --- LOGICA CHAT ---
     with c_chat:
         st.subheader("💬 Coach Chat")
         for m in st.session_state.messages:
             with st.chat_message(m["role"]): st.markdown(m["content"])
+            
         if prompt := st.chat_input("Chiedi al coach..."):
-            st.session_state.messages.append({"role": "user", "content": prompt})
-            with st.chat_message("user"): st.markdown(prompt)
-            if st.session_state.api_key_input:
-                genai.configure(api_key=st.session_state.api_key_input, transport='rest')
-                model = genai.GenerativeModel("gemini-2.5-flash")
-                u = st.session_state.user_data
-                context = f"Atleta {u.get('disc')}, {u.get('eta')} anni. Goal: {u.get('goal')}. No food: {u.get('no_food')}."
-                with st.chat_message("assistant"):
-                    resp = model.generate_content([context, prompt])
-                    st.markdown(resp.text)
-                    st.session_state.messages.append({"role": "assistant", "content": resp.text})
+            if not st.session_state.api_key_input:
+                st.error("Inserisci la chiave API nella barra laterale!")
+            else:
+                st.session_state.messages.append({"role": "user", "content": prompt})
+                with st.chat_message("user"): st.markdown(prompt)
+                
+                try:
+                    # FIX: Configurazione forzata su REST per evitare l'errore metadata
+                    genai.configure(api_key=st.session_state.api_key_input, transport='rest')
+                    model = genai.GenerativeModel("gemini-1.5-flash") # Usiamo 1.5 per massima stabilità
+                    u = st.session_state.user_data
+                    context = f"Atleta {u.get('disc')}, {u.get('eta')} anni. Goal: {u.get('goal')}. No food: {u.get('no_food')}."
+                    
+                    with st.chat_message("assistant"):
+                        resp = model.generate_content([context, prompt])
+                        st.markdown(resp.text)
+                        st.session_state.messages.append({"role": "assistant", "content": resp.text})
+                except Exception as e:
+                    st.error(f"Errore AI: {e}")
 
+    # --- LOGICA STRAVA ---
     with c_strava:
         st.subheader("📊 Analisi Strava")
         if "strava_token" in st.session_state:
@@ -108,17 +116,26 @@ with tab_dashboard:
                 activities = client.get_activities(limit=1)
                 for act in activities:
                     st.info(f"Rilevato: {act.name}")
-                    # Mostriamo subito i dati se disponibili
                     dist_km = float(act.distance) / 1000
-                    st.write(f"Distanza: {dist_km:.2f} km")
+                    st.metric("Distanza", f"{dist_km:.2f} km")
                     
                     if st.button("✨ Analizza Giro"):
-                        genai.configure(api_key=st.session_state.api_key_input, transport='rest')
-                        model = genai.GenerativeModel("gemini-2.5-flash")
-                        prompt_s = f"Analizza questo giro di {dist_km:.2f}km per un atleta di {st.session_state.user_data.get('peso')}kg. A) Proprietà allenate B) Recupero post-giro (no {st.session_state.user_data.get('no_food')})."
-                        with st.spinner("Analisi..."):
-                            res = model.generate_content(prompt_s)
-                            st.write(res.text)
+                        if not st.session_state.api_key_input:
+                            st.error("Manca la chiave API!")
+                        else:
+                            try:
+                                # FIX: Configurazione forzata su REST
+                                genai.configure(api_key=st.session_state.api_key_input, transport='rest')
+                                model = genai.GenerativeModel("gemini-1.5-flash")
+                                u = st.session_state.user_data
+                                prompt_s = f"Analizza questo giro di {dist_km:.2f}km. Peso atleta: {u.get('peso')}kg. A) Proprietà allenate B) Recupero (no {u.get('no_food')})."
+                                
+                                with st.spinner("L'IA sta elaborando..."):
+                                    res = model.generate_content(prompt_s)
+                                    st.success("Analisi completata!")
+                                    st.write(res.text)
+                            except Exception as e:
+                                st.error(f"Errore Analisi IA: {e}")
             except Exception as e:
-                st.error(f"Errore tecnico: {e}. Prova a ricollegare Strava spuntando tutte le caselle.")
+                st.error(f"Errore caricamento Strava: {e}")
         else: st.warning("Connetti Strava")
