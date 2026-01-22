@@ -7,19 +7,17 @@ from PIL import Image
 CLIENT_ID = '196357'
 CLIENT_SECRET = '25a52cfbe7ddd6de7964e341aae473c643ff26c3'
 REDIRECT_URI = 'https://biocycle-app-fm8xahzxwrfjstshjcgw6v.streamlit.app/'
-GEMINI_MODEL = "gemini-1.5-flash"  # ← CORRETTO
+GEMINI_MODEL = "models/gemini-1.0-pro"  # ← MODELLO GARANTITO
 
 st.set_page_config(page_title="BioCycle AI v4.2", page_icon="🚴‍♂️", layout="wide")
 
-# --- INIZIALIZZAZIONE SESSION STATE ---
+# --- INIZIALIZZAZIONE ---
 if "messages" not in st.session_state: 
     st.session_state.messages = []
 if "strava_token" not in st.session_state: 
     st.session_state.strava_token = None
 if "gemini_key" not in st.session_state: 
     st.session_state.gemini_key = ""
-if "debug_log" not in st.session_state: 
-    st.session_state.debug_log = ""
 if "user_data" not in st.session_state:
     st.session_state.user_data = {
         "disc": "Strada", "eta": 40, "peso": 75.0, "altezza": 175,
@@ -27,7 +25,7 @@ if "user_data" not in st.session_state:
         "giorni": ["Sab", "Dom"]
     }
 
-# --- LOGICA STRAVA ---
+# --- STRAVA ---
 client = Client()
 if "code" in st.query_params:
     try:
@@ -41,7 +39,7 @@ if "code" in st.query_params:
         st.query_params.clear()
         st.rerun()
     except Exception as e:
-        st.session_state.debug_log += f"Errore Strava Auth: {e}\n"
+        st.error(f"Errore Strava: {e}")
 
 # --- SIDEBAR ---
 with st.sidebar:
@@ -61,32 +59,15 @@ with st.sidebar:
     else:
         st.success("🟢 Strava Connesso")
     
-    if st.button("🗑️ Reset Chat & Log"):
+    if st.button("🗑️ Reset"):
         st.session_state.messages = []
-        st.session_state.debug_log = ""
         st.rerun()
-    
-    # DEBUG: Verifica modelli disponibili
-    if st.button("🔍 Testa Modelli"):
-        if st.session_state.gemini_key:
-            try:
-                genai.configure(api_key=st.session_state.gemini_key)
-                for model_name in ["gemini-1.5-flash", "gemini-pro", "gemini-1.5-pro"]:
-                    try:
-                        test_model = genai.GenerativeModel(model_name)
-                        test_model.generate_content("test")
-                        st.success(f"✅ {model_name} funziona")
-                    except Exception as e:
-                        st.error(f"❌ {model_name}: {str(e)[:50]}")
-            except Exception as e:
-                st.error(f"Errore config: {e}")
 
-# --- INTERFACCIA PRINCIPALE ---
+# --- INTERFACCIA ---
 st.title("🚴‍♂️ BioCycle AI: Digital Coach")
-
 t1, t2, t3 = st.tabs(["👤 Profilo", "🏆 Obiettivi & Dieta", "🚀 Dashboard & Chat"])
 
-# TAB 1: PROFILO
+# TAB 1
 with t1:
     st.header("Profilo Biologico")
     c1, c2 = st.columns(2)
@@ -97,9 +78,9 @@ with t1:
         u_peso = st.number_input("Peso (kg)", 40.0, 150.0, st.session_state.user_data["peso"])
         u_alt = st.number_input("Altezza (cm)", 100, 220, st.session_state.user_data["altezza"])
     with c2:
-        u_med = st.text_area("Note Mediche / Patologie", st.session_state.user_data["med"])
+        u_med = st.text_area("Note Mediche", st.session_state.user_data["med"])
         uploaded_docs = st.file_uploader(
-            "Carica Analisi (Foto/PDF)", 
+            "Carica Analisi", 
             type=["jpg", "png", "pdf"], 
             accept_multiple_files=True,
             key="uploaded_files"
@@ -111,14 +92,16 @@ with t1:
         })
         st.success("Profilo salvato!")
 
-# TAB 2: OBIETTIVI
+# TAB 2
 with t2:
     st.header("Obiettivi e Dieta")
     c3, c4 = st.columns(2)
     with c3:
-        u_goal = st.text_input("Specifica obiettivo", st.session_state.user_data["goal"])
+        u_goal = st.text_input("Obiettivo", st.session_state.user_data["goal"])
+        # FIX CRITICO
         opzioni_giorni = ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"]
-        default_validi = [g for g in st.session_state.user_data["giorni"] if g in opzioni_giorni]
+        default_giorni = st.session_state.user_data.get("giorni", [])
+        default_validi = [g for g in default_giorni if g in opzioni_giorni]
         u_giorni = st.multiselect("Giorni disponibili", opzioni_giorni, default=default_validi)
     with c4:
         u_no_food = st.text_area("Alimenti proibiti", st.session_state.user_data["no_food"])
@@ -127,7 +110,7 @@ with t2:
         st.session_state.user_data.update({"goal": u_goal, "giorni": u_giorni, "no_food": u_no_food})
         st.success("Obiettivi aggiornati!")
 
-# TAB 3: DASHBOARD
+# TAB 3
 with t3:
     col_chat, col_strava = st.columns([1.5, 1])
     
@@ -139,7 +122,7 @@ with t3:
         
         if prompt := st.chat_input("Chiedi al coach..."):
             if not st.session_state.gemini_key:
-                st.error("Inserisci la Gemini API Key nella sidebar!")
+                st.error("Inserisci la Gemini API Key!")
             else:
                 st.session_state.messages.append({"role": "user", "content": prompt})
                 with st.chat_message("user"): 
@@ -148,7 +131,7 @@ with t3:
                     genai.configure(api_key=st.session_state.gemini_key)
                     model = genai.GenerativeModel(GEMINI_MODEL)
                     u = st.session_state.user_data
-                    context = f"Atleta {u['disc']}, Goal: {u['goal']}. No food: {u['no_food']}. Med: {u['med']}."
+                    context = f"Atleta {u['disc']}, Goal: {u['goal']}. No food: {u['no_food']}."
                     
                     with st.chat_message("assistant"):
                         res = model.generate_content([context, prompt])
@@ -156,11 +139,10 @@ with t3:
                         st.session_state.messages.append({"role": "assistant", "content": res.text})
                 except Exception as e:
                     st.error(f"Errore AI: {e}")
-                    st.session_state.debug_log += f"Errore Chat: {e}\n"
 
     with col_strava:
-        st.subheader("📊 Analisi Rapida Strava")
-        if st.session_state.strava_token:
+        st.subheader("📊 Analisi Strava")
+        if st.session_state.get("strava_token"):
             client.access_token = st.session_state.strava_token
             try:
                 activities = client.get_activities(limit=1)
@@ -185,17 +167,12 @@ with t3:
                                         if doc.type.startswith("image"):
                                             content_list.append(Image.open(doc))
                                 
-                                with st.spinner("Analisi in corso..."):
+                                with st.spinner("Analisi..."):
                                     r = model.generate_content(content_list)
                                     st.write(r.text)
                             except Exception as e:
-                                st.error(f"Errore Analisi: {e}")
-                                st.session_state.debug_log += f"Errore Strava Analysis: {e}\n"
+                                st.error(f"Errore: {e}")
             except Exception as e:
                 st.error(f"Errore Strava: {e}")
         else:
-            st.warning("Connetti Strava per vedere i dati")
-
-    st.divider()
-    with st.expander("🛠️ Log Tecnico"):
-        st.text_area("Debug", st.session_state.debug_log, height=150)
+            st.warning("Connetti Strava")
