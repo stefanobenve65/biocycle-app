@@ -1,5 +1,4 @@
-
-          import streamlit as st
+import streamlit as st
 import google.generativeai as genai
 from stravalib.client import Client
 from PIL import Image
