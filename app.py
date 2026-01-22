@@ -10,9 +10,9 @@ CLIENT_ID = '196357'
 CLIENT_SECRET = '25a52cfbe7ddd6de7964e341aae473c643ff26c3'
 REDIRECT_URI = 'https://biocycle-app-fm8xahzxwrfjstshjcgw6v.streamlit.app/'
 
-st.set_page_config(page_title="BioCycle AI v3.7", page_icon="🚴‍♂️", layout="wide")
+st.set_page_config(page_title="BioCycle AI v3.8", page_icon="🚴‍♂️", layout="wide")
 
-# --- PERSISTENZA DATI ---
+# --- SISTEMA DI SALVATAGGIO (Persistenza) ---
 DB_FILE = "biocycle_data.json"
 def salva_dati(dati):
     with open(DB_FILE, "w") as f: json.dump(dati, f)
@@ -21,6 +21,7 @@ def carica_dati():
         with open(DB_FILE, "r") as f: return json.load(f)
     return {}
 
+# Inizializzazione Sessione
 if "messages" not in st.session_state: st.session_state.messages = []
 if "user_data" not in st.session_state: st.session_state.user_data = carica_dati()
 
@@ -36,11 +37,11 @@ if "code" in st.query_params:
 # --- SIDEBAR ---
 with st.sidebar:
     st.header("⚙️ Configurazione")
-    # Pulizia automatica della chiave da eventuali spazi
-    raw_key = st.text_input("Gemini API Key", type="password", key="api_key_input")
-    api_key = raw_key.strip() if raw_key else ""
+    gemini_key = st.text_input("Gemini API Key", type="password", key="api_key_input")
     
-    if "strava_token" not in st.session_state:
+    st.divider()
+    if "strava_token" not in st.session_state or not st.session_state.strava_token:
+        # Usiamo gli scopes corretti per vedere i km
         url = client.authorization_url(client_id=CLIENT_ID, redirect_uri=REDIRECT_URI, scope=['read_all', 'activity:read_all'])
         st.link_button("🔗 Connetti Strava", url)
     else: st.success("🟢 Strava Connesso")
@@ -49,53 +50,66 @@ with st.sidebar:
         st.session_state.messages = []
         st.rerun()
 
-# --- INTERFACCIA ---
+# --- INTERFACCIA A 3 TAB (Riorganizzata come volevi) ---
 st.title("🚴‍♂️ BioCycle AI: Digital Coach")
-t1, t2, t3 = st.tabs(["👤 Profilo", "🏆 Obiettivi", "🚀 Dashboard & Chat"])
+tab_profilo, tab_obiettivi, tab_dashboard = st.tabs(["👤 Profilo Utente", "🏆 Obiettivi & Prestazioni", "🚀 Dashboard & Chat"])
 
-with t1:
-    st.header("Il Tuo Profilo")
-    c1, c2 = st.columns(2)
-    with c1:
+# --- TAB 1: PROFILO & SALUTE ---
+with tab_profilo:
+    st.header("Il Tuo Profilo Personale")
+    col_bio, col_med = st.columns(2)
+    with col_bio:
+        st.subheader("Dati Biometrici")
         eta = st.number_input("Età", 14, 90, st.session_state.user_data.get("eta", 40))
         peso = st.number_input("Peso (kg)", 40.0, 150.0, st.session_state.user_data.get("peso", 75.0))
         altezza = st.number_input("Altezza (cm)", 100, 220, st.session_state.user_data.get("altezza", 175))
-        disc = st.radio("Specialità", ["Strada", "MTB"], horizontal=True, index=0 if st.session_state.user_data.get("disc") == "Strada" else 1)
-    with c2:
-        patologie = st.text_area("Note Mediche", st.session_state.user_data.get("med", ""))
-        alimenti_no = st.text_area("Cibi proibiti", st.session_state.user_data.get("no_food", ""))
+        disc = st.radio("Specialità", ["Strada", "MTB"], horizontal=True, 
+                        index=0 if st.session_state.user_data.get("disc") == "Strada" else 1)
+    with col_med:
+        st.subheader("Info Mediche e Nutrizione")
+        patologie = st.text_area("Note mediche / Patologie", st.session_state.user_data.get("med", ""))
+        alimenti_no = st.text_area("Cibi proibiti o non amati", st.session_state.user_data.get("no_food", ""), placeholder="Es: Lattosio, carne rossa...")
+        uploaded_docs = st.file_uploader("Carica Analisi (Foto/PDF)", type=["jpg", "png", "jpeg", "pdf"], accept_multiple_files=True)
+
     if st.button("💾 Fissa Profilo"):
         st.session_state.user_data.update({"eta": eta, "peso": peso, "altezza": altezza, "disc": disc, "med": patologie, "no_food": alimenti_no})
         salva_dati(st.session_state.user_data)
-        st.success("Dati fissati!")
+        st.success("Profilo fissato correttamente!")
 
-with t2:
-    st.header("I Tuoi Obiettivi")
-    obj = st.text_area("Cosa vuoi raggiungere?", st.session_state.user_data.get("goal", ""))
+# --- TAB 2: OBIETTIVI ---
+with tab_obiettivi:
+    st.header("Obiettivi e Prestazioni")
+    obj_testo = st.text_area("Cosa vuoi raggiungere?", st.session_state.user_data.get("goal", ""), 
+                             placeholder="Es: Scalare lo Stelvio, Maratona delle Dolomiti...")
+    giorni = st.multiselect("Giorni disponibili", ["Lun", "Mar", "Mer", "Gio", "Ven", "Sat", "Dom"],
+                            default=st.session_state.user_data.get("giorni", ["Sab", "Dom"]))
+    
     if st.button("💾 Fissa Obiettivi"):
-        st.session_state.user_data.update({"goal": obj})
+        st.session_state.user_data.update({"goal": obj_testo, "giorni": giorni})
         salva_dati(st.session_state.user_data)
         st.success("Obiettivi salvati!")
 
-with t3:
-    c_chat, c_strava = st.columns([1.5, 1])
-    with c_chat:
+# --- TAB 3: DASHBOARD & CHAT ---
+with tab_dashboard:
+    col_chat, col_strava = st.columns([1.5, 1])
+    
+    with col_chat:
         st.subheader("💬 Coach Chat")
         for m in st.session_state.messages:
             with st.chat_message(m["role"]): st.markdown(m["content"])
-            
+        
         if prompt := st.chat_input("Chiedi al coach..."):
-            if not api_key: st.error("Inserisci la chiave API!")
+            if not st.session_state.api_key_input:
+                st.error("Inserisci la chiave API nella barra laterale!")
             else:
                 st.session_state.messages.append({"role": "user", "content": prompt})
                 with st.chat_message("user"): st.markdown(prompt)
                 try:
-                    # CONFIGURAZIONE ROBUSTA
-                    genai.configure(api_key=api_key, transport='rest')
-                    model = genai.GenerativeModel("gemini-1.5-flash")
+                    # Configurazione ESATTA della versione 3.1
+                    genai.configure(api_key=st.session_state.api_key_input.strip(), transport='rest')
+                    model = genai.GenerativeModel("gemini-2.5-flash")
                     u = st.session_state.user_data
-                    # Inserimento preferenze grani antichi/pasta lenticchie
-                    ctx = f"Coach BioCycle. Atleta {u.get('disc')}, {u.get('eta')} anni. Peso {u.get('peso')}kg. Obiettivo: {u.get('goal')}. No food: {u.get('no_food')}. Preferiti: pasta di lenticchie, farro, integrale."
+                    ctx = f"Coach BioCycle. Atleta {u.get('disc')}, {u.get('eta')} anni. Goal: {u.get('goal')}. No food: {u.get('no_food')}. Usa farro, integrale, pasta lenticchie."
                     
                     with st.chat_message("assistant"):
                         res = model.generate_content([ctx, prompt])
@@ -103,9 +117,9 @@ with t3:
                         st.session_state.messages.append({"role": "assistant", "content": res.text})
                 except Exception as e: st.error(f"Errore Chat: {e}")
 
-    with c_strava:
+    with col_strava:
         st.subheader("📊 Analisi Strava")
-        if "strava_token" in st.session_state:
+        if st.session_state.strava_token:
             client.access_token = st.session_state.strava_token
             try:
                 activities = client.get_activities(limit=1)
@@ -115,17 +129,16 @@ with t3:
                     st.metric("Distanza", f"{dist_km:.2f} km")
                     
                     if st.button("✨ Analizza Giro"):
-                        if not api_key: st.error("Manca chiave API!")
-                        else:
-                            try:
-                                genai.configure(api_key=api_key, transport='rest')
-                                model = genai.GenerativeModel("gemini-1.5-flash")
-                                u = st.session_state.user_data
-                                prompt_s = f"Analizza giro di {dist_km:.2f}km per atleta {u.get('peso')}kg. A) Proprietà allenate. B) Recupero nutrizionale (considera pasta lenticchie, farro, integrale; no {u.get('no_food')})."
-                                with st.spinner("L'IA sta elaborando..."):
-                                    r = model.generate_content(prompt_s)
-                                    st.success("Analisi completata!")
-                                    st.write(r.text)
-                            except Exception as e: st.error(f"Errore Analisi: {e}")
+                        genai.configure(api_key=st.session_state.api_key_input.strip(), transport='rest')
+                        model = genai.GenerativeModel("gemini-2.5-flash")
+                        u = st.session_state.user_data
+                        prompt_s = f"Analizza giro di {dist_km:.2f}km. Atleta {u.get('peso')}kg. A) Capacità allenata B) Recupero (no {u.get('no_food')}). Includi farro, integrale o pasta lenticchie."
+                        with st.spinner("Analisi..."):
+                            input_ai = [prompt_s]
+                            if uploaded_docs:
+                                for doc in uploaded_docs:
+                                    if doc.type.startswith("image"): input_ai.append(Image.open(doc))
+                            res = model.generate_content(input_ai)
+                            st.write(res.text)
             except Exception as e: st.error(f"Errore Strava: {e}")
         else: st.warning("Connetti Strava")
