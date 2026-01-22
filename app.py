@@ -39,17 +39,41 @@ if "code" in st.query_params:
         st.query_params.clear()
     except: pass
 
-# --- SIDEBAR ---
+# --- SIDEBAR AGGIORNATA ---
 with st.sidebar:
     st.header("⚙️ Configurazione")
     gemini_key = st.text_input("Gemini API Key", type="password", key="api_key_input")
+    
+    # Abbiamo aggiunto 'activity:read_all' per vedere i dati tecnici
     if "strava_token" not in st.session_state:
-        url = client.authorization_url(client_id=CLIENT_ID, redirect_uri=REDIRECT_URI, scope=['activity:read_all'])
+        url = client.authorization_url(
+            client_id=CLIENT_ID, 
+            redirect_uri=REDIRECT_URI, 
+            scope=['read_all', 'activity:read_all'] 
+        )
         st.link_button("🔗 Connetti Strava", url)
-    else: st.success("🟢 Strava Connesso")
-    if st.button("🗑️ Reset Chat"):
-        st.session_state.messages = []
-        st.rerun()
+    else: 
+        st.success("🟢 Strava Connesso")
+
+# --- LOGICA DI LETTURA NELLA DASHBOARD ---
+# (Assicurati che nel tasto di analisi ci siano questi parametri)
+if st.button("✨ Analizza Recupero & Proprietà"):
+    # Chiediamo esplicitamente i dati km e dislivello
+    distanza_km = float(act.distance) / 1000
+    dislivello_m = int(act.total_elevation_gain)
+    tempo_tot = act.moving_time
+    
+    prompt_strava = f"""
+    ANALISI TECNICA CICLISMO:
+    Giro effettuato: {act.name}
+    Distanza: {distanza_km:.2f} km
+    Dislivello: {dislivello_m} metri
+    Tempo: {tempo_tot}
+    
+    In base al profilo dell'atleta {st.session_state.user_data}, rispondi:
+    1. Quale proprietà abbiamo allenato?
+    2. Cosa mangiare per il recupero (no {st.session_state.user_data.get('no_food')})?
+    """
 
 # --- INTERFACCIA A 3 TAB ---
 st.title("🚴‍♂️ BioCycle AI: Digital Coach")
