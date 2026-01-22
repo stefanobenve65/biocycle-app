@@ -7,7 +7,7 @@ from PIL import Image
 CLIENT_ID = '196357'
 CLIENT_SECRET = '25a52cfbe7ddd6de7964e341aae473c643ff26c3'
 REDIRECT_URI = 'https://biocycle-app-fm8xahzxwrfjstshjcgw6v.streamlit.app/'
-GEMINI_MODEL = "gemini-1.5-flash-latest"
+GEMINI_MODEL = "gemini-1.5-flash"  # ← CORRETTO
 
 st.set_page_config(page_title="BioCycle AI v4.2", page_icon="🚴‍♂️", layout="wide")
 
@@ -65,11 +65,25 @@ with st.sidebar:
         st.session_state.messages = []
         st.session_state.debug_log = ""
         st.rerun()
+    
+    # DEBUG: Verifica modelli disponibili
+    if st.button("🔍 Testa Modelli"):
+        if st.session_state.gemini_key:
+            try:
+                genai.configure(api_key=st.session_state.gemini_key)
+                for model_name in ["gemini-1.5-flash", "gemini-pro", "gemini-1.5-pro"]:
+                    try:
+                        test_model = genai.GenerativeModel(model_name)
+                        test_model.generate_content("test")
+                        st.success(f"✅ {model_name} funziona")
+                    except Exception as e:
+                        st.error(f"❌ {model_name}: {str(e)[:50]}")
+            except Exception as e:
+                st.error(f"Errore config: {e}")
 
 # --- INTERFACCIA PRINCIPALE ---
 st.title("🚴‍♂️ BioCycle AI: Digital Coach")
 
-# ← QUI CREIAMO I TAB (PRIMA DI USARLI)
 t1, t2, t3 = st.tabs(["👤 Profilo", "🏆 Obiettivi & Dieta", "🚀 Dashboard & Chat"])
 
 # TAB 1: PROFILO
@@ -142,6 +156,7 @@ with t3:
                         st.session_state.messages.append({"role": "assistant", "content": res.text})
                 except Exception as e:
                     st.error(f"Errore AI: {e}")
+                    st.session_state.debug_log += f"Errore Chat: {e}\n"
 
     with col_strava:
         st.subheader("📊 Analisi Rapida Strava")
@@ -175,6 +190,7 @@ with t3:
                                     st.write(r.text)
                             except Exception as e:
                                 st.error(f"Errore Analisi: {e}")
+                                st.session_state.debug_log += f"Errore Strava Analysis: {e}\n"
             except Exception as e:
                 st.error(f"Errore Strava: {e}")
         else:
