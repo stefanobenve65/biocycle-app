@@ -8,7 +8,7 @@ import io
 # --- CONFIGURAZIONE ---
 CLIENT_ID = '196357'
 CLIENT_SECRET = '25a52cfbe7ddd6de7964e341aae473c643ff26c3'
-REDIRECT_URI = 'https://biocycle-app-fm8xahzxwrfjstshjcgw6v.streamlit.app/'
+REDIRECT_URI = 'https://biocycle-app-kqdstntxmcujzgzy48x2ua.streamlit.app/'
 
 st.set_page_config(page_title="BioCycle AI", layout="wide")
 
